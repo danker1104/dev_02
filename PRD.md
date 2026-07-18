@@ -1,7 +1,7 @@
 # PRD - 냉장고 알리미 (MVP)
 
 ## 1. 문서 목적
-본 문서는 [기획서.md](기획서.md)와 [아키텍처.md](아키텍처.md)를 기반으로 MVP 제품 요구사항과 구현 범위를 확정한다.
+본 문서는 [기획서.md](기획서.md)와 [TRD.md](TRD.md)를 기반으로 MVP 제품 요구사항과 구현 범위를 확정한다.
 
 ## 2. 제품 개요
 - 제품명: 냉장고 알리미
@@ -49,10 +49,11 @@
 ### FR-3 중복 및 동일성 처리
 - 동일성 기준: 식재료명 + 보관 구분 + 단위 + 용량
 - 동일 항목 재등록 시 수량 증가
-- 단위/용량 누락 시 신규 저장 후 병합 여부 선택
+- 단위/용량 누락 시 신규 저장 (MVP에서는 병합 UX 제외)
 
 ### FR-4 알림
 - 유통기한 3일 전 푸시 1회
+- 동일 품목 다중 배치는 가장 이른 유통기한을 기준으로 D-3 알림을 판단한다.
 - 등록 시점 잔여 3일 이하 항목 즉시 주의 표시
 - 푸시 권한 거부 시 앱 내 배너/모달로 대체 안내
 - 중복 발송 방지 로그 저장
@@ -72,22 +73,22 @@
 - 모듈러 모놀리식
 - Frontend: Next.js PWA
 - Backend: FastAPI
-- Storage: Azure Storage Account (Table + Queue)
+- Storage: Azure Storage Account (Table)
 
 ### AR-2 백엔드 모듈
 - Device, Inventory, OCR, Notification, Search, Scheduler
+- OCR 구현: 외부 Vision API를 사용하며, 원본 이미지는 저장하지 않고 OCR 결과 텍스트만 저장한다.
+- 알림 실행: API 프로세스 내부 Scheduler(APScheduler)로 일 1회 D-3 대상 배치를 실행한다.
 
 ### AR-3 배포 최소 단위
 - web 컨테이너 1개
 - api 컨테이너 1개
-- worker 컨테이너 1개
 - Azure Storage Account 1개
 
 ## 11. 데이터 요구사항
 - DeviceTable: 기기 식별 및 푸시 권한 상태
 - InventoryItemTable: 품목 마스터 및 합산 수량
 - InventoryBatchTable: 유통기한 단위 배치
-- InventoryEventTable: 등록/차감/소진/폐기 이벤트
 - NotificationLogTable: D-3 발송 로그
 
 ## 12. 비기능 요구사항
@@ -112,7 +113,7 @@
 - KPI 이벤트를 분석 가능한 형태로 수집한다.
 
 ## 15. 리스크 및 대응
-- OCR 오인식: 저장 전 수정 UX 및 저신뢰도 경고
+- OCR 오인식: 저장 전 수정 UX 강화
 - 등록 피로: 빠른 수동입력 동선 제공
 - 알림 미도달: 발송 로그 추적 + 앱 내 대체 안내
 - Table 조회 제약: PartitionKey/RowKey 중심 조회 패턴 우선 설계

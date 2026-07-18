@@ -1,0 +1,9 @@
+{
+  "name": "냉장고 알리미",
+  "short_name": "냉장고알림",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f7f3e8",
+  "theme_color": "#113355",
+  "description": "유통기한 D-3 알림과 재고 검색을 위한 냉장고 관리 앱"
+}
