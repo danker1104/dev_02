@@ -1,0 +1,12 @@
+__pycache__
+*.pyc
+.pytest_cache
+.venv
+venv
+env
+web/node_modules
+web/.next
+web/.env.local
+*.egg-info
+tmp-ocr-sample.png
+test ex.png
