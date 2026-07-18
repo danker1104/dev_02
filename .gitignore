@@ -11,3 +11,4 @@ web/.env.local
 tmp-ocr-sample.png
 test ex.png
 .azure
+next-steps.md

@@ -1,0 +1,29 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/Azure/azure-dev/main/schemas/v1.0/azure.yaml.json
+
+name: "fridge-alert-mvp"
+metadata:
+    template: azd-init@1.25.4
+services:
+    api:
+        project: .
+        host: containerapp
+        language: python
+        docker:
+            path: Dockerfile
+    web:
+        project: web
+        host: containerapp
+        language: js
+        uses:
+            - api
+        docker:
+            path: Dockerfile
+            buildArgs:
+                - NEXT_PUBLIC_API_BASE=https://api.graymoss-9ad7ec52.koreacentral.azurecontainerapps.io
+resources:
+    api:
+        type: host.containerapp
+        port: 8000
+    web:
+        type: host.containerapp
+        port: 3000
