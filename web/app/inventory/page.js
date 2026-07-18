@@ -47,16 +47,9 @@ export default function InventoryPage() {
 
       <section className="grid">
         <article className="card">
-          <div className="row">
-            <div className="row">
-              <input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="식재료명"
-                style={{ width: 280 }}
-              />
-              <button onClick={() => load(deviceId, query)}>검색</button>
-            </div>
+          <div className="search-bar">
+            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="식재료명" />
+            <button onClick={() => load(deviceId, query)}>검색</button>
           </div>
           {info && <p>{info}</p>}
 
@@ -76,7 +69,7 @@ export default function InventoryPage() {
                     </div>
                     <span className={statusLabelToClass(it.status)}>{it.status}</span>
                   </div>
-                  <div className="row" style={{ marginTop: 10 }}>
+                  <div className="action-row">
                     <button onClick={() => reduce(it.item_id)}>수량 -1</button>
                     <button className="warn" onClick={() => discard(it.item_id)}>
                       전량 폐기

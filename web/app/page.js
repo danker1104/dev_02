@@ -21,6 +21,7 @@ export default function HomePage() {
   const [itemDetail, setItemDetail] = useState(null);
   const [error, setError] = useState("");
   const [pushHint, setPushHint] = useState("");
+  const [isEnablingPush, setIsEnablingPush] = useState(false);
   const [alertPolicy, setAlertPolicy] = useState({
     push_permission_denied: false,
     show_permission_modal: false,
@@ -56,6 +57,44 @@ export default function HomePage() {
     await fetch(`${getApiBase()}/notifications/d3/run`, { method: "POST" });
   }
 
+  async function enablePushFlow() {
+    if (!deviceId) return;
+    if (typeof Notification === "undefined") {
+      setPushHint("이 브라우저는 알림 기능을 지원하지 않습니다.");
+      return;
+    }
+    if (!("serviceWorker" in navigator) || !window.PushManager) {
+      setPushHint("현재 브라우저에서는 웹푸시를 사용할 수 없습니다. 일반 브라우저 또는 홈 화면 앱에서 시도해 주세요.");
+      return;
+    }
+
+    setIsEnablingPush(true);
+    try {
+      const state = await Notification.requestPermission();
+      await syncPermission(deviceId, state);
+
+      if (state !== "granted") {
+        setPushHint("알림이 차단되어 있습니다. 브라우저 사이트 설정에서 알림을 허용해 주세요.");
+        await loadAll(deviceId);
+        return;
+      }
+
+      await upsertPushSubscription(deviceId);
+      await runD3Batch();
+      await loadAll(deviceId);
+      setPushHint("푸시 권한 허용 및 구독이 완료되었습니다. 임박 재고가 있으면 알림이 발송됩니다.");
+    } catch (e) {
+      const msg = String(e?.message || e || "");
+      if (msg.includes("incognito")) {
+        setPushHint("시크릿 모드에서는 푸시 구독이 제한됩니다. 일반 브라우저 창에서 다시 시도해 주세요.");
+      } else {
+        setPushHint("푸시 권한/구독 설정 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.");
+      }
+    } finally {
+      setIsEnablingPush(false);
+    }
+  }
+
   async function upsertPushSubscription(currentDeviceId) {
     if (typeof window === "undefined") return;
     if (!("serviceWorker" in navigator)) return;
@@ -64,9 +103,15 @@ export default function HomePage() {
 
     const registration = await navigator.serviceWorker.ready;
     let subscription = await registration.pushManager.getSubscription();
+    const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || "";
+
+    if (subscription && vapidPublicKey) {
+      // Recreate subscription after key rotation so server private/public keys stay aligned.
+      await subscription.unsubscribe();
+      subscription = null;
+    }
 
     if (!subscription) {
-      const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || "";
       const subscribeOptions = { userVisibleOnly: true };
       if (vapidPublicKey) {
         subscribeOptions.applicationServerKey = base64UrlToUint8Array(vapidPublicKey);
@@ -116,11 +161,7 @@ export default function HomePage() {
         return;
       }
 
-      let state = Notification.permission;
-      if (state === "default") {
-        state = await Notification.requestPermission();
-      }
-
+      const state = Notification.permission;
       await syncPermission(id, state);
       if (state === "granted") {
         try {
@@ -188,9 +229,23 @@ export default function HomePage() {
         {alertPolicy.persistent_warning_banner && (
           <div className="banner">
             푸시 권한이 없어서 앱 내 배너로 임박/기한 지남 항목을 안내합니다.
+            <div className="banner-actions">
+              <button className="primary" onClick={enablePushFlow} disabled={isEnablingPush}>
+                {isEnablingPush ? "권한 설정 중..." : "푸시 권한 요청"}
+              </button>
+            </div>
           </div>
         )}
-        {alertPolicy.show_permission_modal && <div className="banner">앱 시작 시 푸시 권한을 자동 요청합니다.</div>}
+        {alertPolicy.show_permission_modal && (
+          <div className="banner">
+            임박 재고 알림을 받으려면 푸시 권한이 필요합니다.
+            <div className="banner-actions">
+              <button className="primary" onClick={enablePushFlow} disabled={isEnablingPush}>
+                {isEnablingPush ? "권한 설정 중..." : "푸시 권한 요청"}
+              </button>
+            </div>
+          </div>
+        )}
         {pushHint && <div className="banner">{pushHint}</div>}
       </section>
 

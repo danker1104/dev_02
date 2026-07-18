@@ -24,6 +24,7 @@ body {
     radial-gradient(circle at 90% 5%, #cdf3ea 0, transparent 30%),
     linear-gradient(155deg, var(--bg), var(--bg-2));
   min-height: 100vh;
+  overflow-x: hidden;
 }
 
 a {
@@ -34,7 +35,7 @@ a {
 .shell {
   max-width: 980px;
   margin: 0 auto;
-  padding: 24px 16px 42px;
+  padding: clamp(14px, 3.5vw, 24px) clamp(12px, 3.5vw, 16px) 42px;
 }
 
 .hero {
@@ -44,6 +45,17 @@ a {
   padding: 20px;
   box-shadow: 0 12px 30px rgba(20, 32, 51, 0.08);
   animation: float-in 420ms ease-out both;
+}
+
+.hero h1 {
+  margin: 0;
+  font-size: clamp(24px, 5.5vw, 36px);
+  line-height: 1.12;
+}
+
+.hero p {
+  margin: 10px 0 0;
+  color: var(--ink-soft);
 }
 
 @keyframes float-in {
@@ -67,9 +79,13 @@ a {
 .nav a {
   border: 1px solid var(--ink);
   border-radius: 999px;
-  padding: 8px 14px;
+  padding: 10px 14px;
   font-weight: 700;
   background: white;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .grid {
@@ -98,6 +114,7 @@ input,
 select,
 button {
   font: inherit;
+  font-size: 16px;
 }
 
 .field {
@@ -175,6 +192,11 @@ button.warn {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  min-width: 0;
+}
+
+.row > * {
+  min-width: 0;
 }
 
 .list {
@@ -206,6 +228,64 @@ button.warn {
   gap: 8px;
 }
 
+.search-bar {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+  flex-wrap: wrap;
+}
+
+.search-bar input {
+  flex: 1 1 240px;
+  min-width: 0;
+}
+
+.action-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.action-row button {
+  flex: 1;
+}
+
+.vision-upload-grid {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.vision-field {
+  margin-bottom: 0;
+}
+
+.vision-file-input {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+  padding: 8px;
+  color: var(--ink-soft);
+}
+
+.vision-file-input::file-selector-button {
+  border: 1px solid var(--ink);
+  border-radius: 10px;
+  background: #f4f8ff;
+  padding: 8px 12px;
+  margin-right: 10px;
+  font: inherit;
+  font-weight: 700;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.vision-submit {
+  width: 100%;
+  margin-top: 12px;
+}
+
 .more-toggle {
   width: 100%;
   border-style: dashed;
@@ -222,8 +302,79 @@ button.warn {
   color: #5b4711;
 }
 
+.banner-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.banner-actions button {
+  min-height: 44px;
+}
+
 .fine {
   font-family: var(--font-ibm-plex-mono), monospace;
   color: var(--ink-soft);
   font-size: 12px;
+}
+
+@media (max-width: 700px) {
+  .hero {
+    border-radius: 16px;
+    padding: 14px;
+  }
+
+  .card {
+    border-radius: 14px;
+    padding: 12px;
+  }
+
+  .grid {
+    gap: 10px;
+  }
+
+  .nav {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .row {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .summary-filter-row button {
+    flex: 1;
+  }
+
+  .search-bar {
+    flex-direction: column;
+  }
+
+  .search-bar button {
+    width: 100%;
+  }
+
+  .vision-upload-grid {
+    gap: 8px;
+  }
+
+  .vision-file-input {
+    padding: 10px;
+  }
+
+  .vision-file-input::file-selector-button {
+    width: 100%;
+    margin: 0 0 8px;
+    display: block;
+  }
+
+  .banner-actions {
+    flex-direction: column;
+  }
+
+  .banner-actions button {
+    width: 100%;
+  }
 }

@@ -47,6 +47,60 @@ export default function RegisterPage() {
     return "Vision 인식 결과를 가져오지 못했습니다. 아래 수동 입력으로 계속 진행해 주세요.";
   }
 
+  function readImageDimensions(file) {
+    return new Promise((resolve, reject) => {
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => {
+        const dims = { width: img.naturalWidth, height: img.naturalHeight, img, url };
+        resolve(dims);
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        reject(new Error("image_load_failed"));
+      };
+      img.src = url;
+    });
+  }
+
+  async function prepareImageForOcr(file) {
+    const isImage = file?.type?.startsWith("image/");
+    if (!isImage) return file;
+
+    const MAX_EDGE = 1600;
+    const JPEG_QUALITY = 0.82;
+
+    const { width, height, img, url } = await readImageDimensions(file);
+    const scale = Math.min(1, MAX_EDGE / Math.max(width, height));
+    const targetWidth = Math.max(1, Math.round(width * scale));
+    const targetHeight = Math.max(1, Math.round(height * scale));
+
+    const canvas = document.createElement("canvas");
+    canvas.width = targetWidth;
+    canvas.height = targetHeight;
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) {
+      URL.revokeObjectURL(url);
+      return file;
+    }
+
+    ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
+    URL.revokeObjectURL(url);
+
+    const blob = await new Promise((resolve, reject) => {
+      canvas.toBlob((result) => {
+        if (result) {
+          resolve(result);
+          return;
+        }
+        reject(new Error("image_encode_failed"));
+      }, "image/jpeg", JPEG_QUALITY);
+    });
+
+    return blob;
+  }
+
   async function runMockOcr() {
     if (!visionFile) {
       setOcrMessage("이미지를 먼저 선택해 주세요.");
@@ -57,7 +111,8 @@ export default function RegisterPage() {
     setOcrMessage("이미지를 인식하는 중입니다. 잠시만 기다려 주세요.");
 
     const formData = new FormData();
-    formData.append("file", visionFile);
+    const uploadBlob = await prepareImageForOcr(visionFile);
+    formData.append("file", uploadBlob, `${Date.now()}-vision.jpg`);
 
     const controller = new AbortController();
     const timeoutId = window.setTimeout(() => controller.abort(), 15000);
@@ -134,18 +189,21 @@ export default function RegisterPage() {
         <article className="card card-half">
           <h3>Vision 등록</h3>
           <p className="fine">이미지를 선택한 뒤 인식 버튼을 눌러 주세요. 실제 Vision API 연동은 아직 적용하지 않았습니다.</p>
-          <div className="field">
+          <div className="vision-upload-grid">
+          <div className="field vision-field">
             <label>이미지 파일 첨부</label>
             <input
+              className="vision-file-input"
               type="file"
               accept="image/*"
               onChange={(e) => onVisionFileSelected(e.target.files?.[0] || null)}
             />
           </div>
           {isMobileDevice && (
-            <div className="field">
+            <div className="field vision-field">
               <label>카메라로 바로 촬영</label>
               <input
+                className="vision-file-input"
                 type="file"
                 accept="image/*"
                 capture="environment"
@@ -153,7 +211,8 @@ export default function RegisterPage() {
               />
             </div>
           )}
-          <button onClick={runMockOcr} disabled={isOcrLoading}>
+          </div>
+          <button className="vision-submit" onClick={runMockOcr} disabled={isOcrLoading}>
             {isOcrLoading ? "인식 중..." : "Vision 인식 (준비중)"}
           </button>
           {visionFileName && <p className="fine">선택한 파일: {visionFileName}</p>}
