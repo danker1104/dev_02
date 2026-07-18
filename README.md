@@ -30,7 +30,7 @@
 - OCR 연동을 사용하려면 아래 환경변수를 설정해야 합니다.
 
 ```powershell
-$env:OCR_API_KEY="K86524379288957"
+$env:OCR_API_KEY="<your-ocr-api-key>"
 $env:OCR_API_URL="https://ocr.space"
 $env:OCR_ENGINE="3"
 $env:OCR_LANGUAGE="kor"

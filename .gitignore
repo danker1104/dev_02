@@ -10,3 +10,4 @@ web/.env.local
 *.egg-info/
 tmp-ocr-sample.png
 test ex.png
+.azure
