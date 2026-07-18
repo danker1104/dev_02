@@ -419,7 +419,7 @@ async def ocr_mock(request: FastAPIRequest) -> OCRResult:
             content_type=mime_type,
         )
         request = Request(api_url, data=body, headers={"Content-Type": content_type}, method="POST")
-        with urlopen(request, timeout=30) as response:
+        with urlopen(request, timeout=15) as response:
             payload_response = json.loads(response.read().decode("utf-8"))
     except Exception:
         return _ocr_fallback("request_failed")
