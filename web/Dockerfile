@@ -6,7 +6,9 @@ RUN npm ci
 FROM node:20-alpine AS builder
 WORKDIR /app
 ARG NEXT_PUBLIC_API_BASE=http://localhost:8000
+ARG NEXT_PUBLIC_VAPID_PUBLIC_KEY=
 ENV NEXT_PUBLIC_API_BASE=$NEXT_PUBLIC_API_BASE
+ENV NEXT_PUBLIC_VAPID_PUBLIC_KEY=$NEXT_PUBLIC_VAPID_PUBLIC_KEY
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN npm run build

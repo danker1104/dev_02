@@ -20,7 +20,7 @@ services:
             path: Dockerfile
             buildArgs:
                 - NEXT_PUBLIC_API_BASE=https://api.graymoss-9ad7ec52.koreacentral.azurecontainerapps.io
-                - NEXT_PUBLIC_VAPID_PUBLIC_KEY=BH2Ie5Fs0TEPUi5rJr4NPQEEXitorS3E1UuFuw5byNG4CqO6oK8Kr5QfTPSw0ea-QfTr1hEQFyDChQFSJ32IlJw
+                - NEXT_PUBLIC_VAPID_PUBLIC_KEY=BKgJlyG0ko69FLiC1CqGLa0ZC-gbVSuiSTUJGW4GX-7Mlokl9YvMlDEUWnZCEYGCmU0aojffgnEJm0Mf2hUQhE0
 resources:
     api:
         type: host.containerapp

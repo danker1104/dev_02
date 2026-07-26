@@ -5,11 +5,38 @@ import { useEffect, useMemo, useState } from "react";
 
 import { apiGet, apiPost, getApiBase, getOrCreateDeviceId, statusLabelToClass } from "../lib/api";
 
+async function fetchOrThrow(url, init) {
+  const res = await fetch(url, init);
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`HTTP ${res.status} ${url} ${text}`);
+  }
+  return res;
+}
+
 function base64UrlToUint8Array(base64UrlString) {
   const padding = "=".repeat((4 - (base64UrlString.length % 4)) % 4);
   const base64 = (base64UrlString + padding).replace(/-/g, "+").replace(/_/g, "/");
   const rawData = atob(base64);
   return Uint8Array.from([...rawData].map((ch) => ch.charCodeAt(0)));
+}
+
+function isSameServerKey(subscription, vapidPublicKey) {
+  const expected = base64UrlToUint8Array(vapidPublicKey);
+  const actualBuffer = subscription?.options?.applicationServerKey;
+  if (!actualBuffer) {
+    return false;
+  }
+  const actual = new Uint8Array(actualBuffer);
+  if (actual.length !== expected.length) {
+    return false;
+  }
+  for (let i = 0; i < actual.length; i += 1) {
+    if (actual[i] !== expected[i]) {
+      return false;
+    }
+  }
+  return true;
 }
 
 export default function HomePage() {
@@ -46,7 +73,7 @@ export default function HomePage() {
       return;
     }
     const state = stateOverride || Notification.permission;
-    await fetch(`${getApiBase()}/device/${currentDeviceId}/push-permission`, {
+    await fetchOrThrow(`${getApiBase()}/device/${currentDeviceId}/push-permission`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ state }),
@@ -54,7 +81,7 @@ export default function HomePage() {
   }
 
   async function runD3Batch() {
-    await fetch(`${getApiBase()}/notifications/d3/run`, { method: "POST" });
+    await fetchOrThrow(`${getApiBase()}/notifications/d3/run`, { method: "POST" });
   }
 
   async function enablePushFlow() {
@@ -87,6 +114,10 @@ export default function HomePage() {
       const msg = String(e?.message || e || "");
       if (msg.includes("incognito")) {
         setPushHint("시크릿 모드에서는 푸시 구독이 제한됩니다. 일반 브라우저 창에서 다시 시도해 주세요.");
+      } else if (msg.includes("missing_vapid_public_key")) {
+        setPushHint("웹푸시 설정값이 누락되었습니다. 관리자에게 VAPID 공개키 설정을 요청해 주세요.");
+      } else if (msg.includes("HTTP 4") || msg.includes("HTTP 5")) {
+        setPushHint("서버와 푸시 구독 동기화에 실패했습니다. 잠시 후 다시 시도해 주세요.");
       } else {
         setPushHint("푸시 권한/구독 설정 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.");
       }
@@ -105,17 +136,19 @@ export default function HomePage() {
     let subscription = await registration.pushManager.getSubscription();
     const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || "";
 
-    if (subscription && vapidPublicKey) {
-      // Recreate subscription after key rotation so server private/public keys stay aligned.
+    if (!vapidPublicKey) {
+      throw new Error("missing_vapid_public_key");
+    }
+
+    if (subscription && !isSameServerKey(subscription, vapidPublicKey)) {
+      // Re-subscribe only when key has changed so existing installs recover automatically after key rotation.
       await subscription.unsubscribe();
       subscription = null;
     }
 
     if (!subscription) {
       const subscribeOptions = { userVisibleOnly: true };
-      if (vapidPublicKey) {
-        subscribeOptions.applicationServerKey = base64UrlToUint8Array(vapidPublicKey);
-      }
+      subscribeOptions.applicationServerKey = base64UrlToUint8Array(vapidPublicKey);
       subscription = await registration.pushManager.subscribe(subscribeOptions);
     }
 
@@ -124,7 +157,7 @@ export default function HomePage() {
       return;
     }
 
-    await fetch(`${getApiBase()}/device/${currentDeviceId}/push-subscription`, {
+    await fetchOrThrow(`${getApiBase()}/device/${currentDeviceId}/push-subscription`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -170,6 +203,10 @@ export default function HomePage() {
           const msg = String(e?.message || e || "");
           if (msg.includes("incognito")) {
             setPushHint("시크릿 모드에서는 웹푸시 구독이 제한됩니다. 일반 브라우저 창에서 이용해 주세요.");
+          } else if (msg.includes("missing_vapid_public_key")) {
+            setPushHint("웹푸시 설정값이 누락되었습니다. 관리자에게 VAPID 공개키 설정을 요청해 주세요.");
+          } else if (msg.includes("HTTP 4") || msg.includes("HTTP 5")) {
+            setPushHint("서버와 푸시 구독 동기화에 실패했습니다. 잠시 후 다시 시도해 주세요.");
           } else {
             setPushHint("웹푸시 구독 생성에 실패했습니다. 일반 브라우저 창에서 다시 시도해 주세요.");
           }
