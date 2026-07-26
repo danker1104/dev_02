@@ -14,6 +14,7 @@ from apscheduler.triggers.cron import CronTrigger
 from fastapi import FastAPI, HTTPException, Request as FastAPIRequest
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.models import BatchStatus
 from app.repository import create_repository
 from app.schemas import (
     AdjustQuantityRequest,
@@ -560,6 +561,20 @@ def register_inventory(payload: RegisterRequest, today: Optional[date] = None) -
         qty=payload.qty,
         today=base_day,
     )
+    kpi_service.track(
+        device_id=payload.device_id,
+        event_name="inventory_register_completed",
+        properties={"item_id": item.item_id, "status": item.status.value, "source": payload.source},
+    )
+
+    # Trigger notification immediately when an item is saved as imminent.
+    if item.status == BatchStatus.IMMINENT:
+        try:
+            notification_service.dispatch_d3(today=base_day)
+        except Exception:
+            # Keep save flow successful even if notification dispatch has transient issues.
+            pass
+
     _, batches = inventory_service.get_item_view(device_id=payload.device_id, item_id=item.item_id, today=base_day)
     return InventoryItemView(
         item_id=item.item_id,

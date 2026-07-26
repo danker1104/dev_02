@@ -14,11 +14,36 @@ const initial = {
 export default function RegisterPage() {
   const [form, setForm] = useState(initial);
   const [message, setMessage] = useState("");
+  const [saveError, setSaveError] = useState("");
   const [ocrMessage, setOcrMessage] = useState("");
   const [visionFileName, setVisionFileName] = useState("");
   const [visionFile, setVisionFile] = useState(null);
+  const [registrationSource, setRegistrationSource] = useState("manual");
+  const [registrationLog, setRegistrationLog] = useState([]);
   const [isMobileDevice, setIsMobileDevice] = useState(false);
   const [isOcrLoading, setIsOcrLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    try {
+      const stored = window.localStorage.getItem("fridge-registration-log");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) {
+          setRegistrationLog(parsed);
+        }
+      }
+    } catch {
+      window.localStorage.removeItem("fridge-registration-log");
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem("fridge-registration-log", JSON.stringify(registrationLog));
+  }, [registrationLog]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -32,9 +57,20 @@ export default function RegisterPage() {
   function onVisionFileSelected(file) {
     setVisionFile(file);
     setVisionFileName(file?.name || "");
-    setForm(initial);
     setMessage("");
+    setSaveError("");
     setOcrMessage("");
+  }
+
+  function updateForm(next) {
+    setForm(next);
+    setRegistrationSource("manual");
+  }
+
+  function formatRegistrationSource(source) {
+    if (source === "vision") return "Vision 자동 입력";
+    if (source === "manual") return "직접 수동 입력";
+    return source || "수동 입력";
   }
 
   function mapOcrFailReason(reason) {
@@ -137,6 +173,9 @@ export default function RegisterPage() {
         name: result.name || "",
         expiry_date: result.expiry_date || "",
       }));
+      if (result.name || result.expiry_date) {
+        setRegistrationSource("vision");
+      }
 
       if (result.fallback_to_manual) {
         setOcrMessage(mapOcrFailReason(result.fail_reason));
@@ -161,17 +200,51 @@ export default function RegisterPage() {
 
   async function submit(e) {
     e.preventDefault();
+    setIsSaving(true);
+    setSaveError("");
     const device_id = getOrCreateDeviceId();
 
     const payload = {
       ...form,
       device_id,
       qty: Number(form.qty),
+      source: registrationSource,
     };
 
-    const saved = await apiPost("/inventory", payload);
-    setMessage(`저장 완료: ${saved.name} / 수량 ${saved.total_qty}`);
-    setForm(initial);
+    try {
+      const saved = await apiPost("/inventory", payload);
+      setMessage(`저장 완료: ${saved.name} / 수량 ${saved.total_qty}`);
+
+      const shouldNotifyNow = saved?.status === "임박" || saved?.status === "기한 지남";
+      if (shouldNotifyNow && typeof Notification !== "undefined" && Notification.permission === "granted") {
+        try {
+          const statusLabel = saved.status === "기한 지남" ? "기한 지남" : "임박";
+          new Notification(`유통기한 ${statusLabel} 알림`, {
+            body: `${saved.name}의 유통기한을 확인해 주세요.`,
+            tag: `inventory-${saved.item_id}`,
+          });
+        } catch {
+          // Keep save flow successful even when local notification display is blocked.
+        }
+      }
+
+      setRegistrationLog((prev) => [
+        {
+          item_id: saved.item_id,
+          name: saved.name,
+          qty: saved.total_qty,
+          source: registrationSource,
+          saved_at: new Date().toISOString(),
+        },
+        ...prev,
+      ].slice(0, 10));
+      setForm(initial);
+      setRegistrationSource("manual");
+    } catch (err) {
+      setSaveError(String(err?.message || err || "저장에 실패했습니다."));
+    } finally {
+      setIsSaving(false);
+    }
   }
 
   return (
@@ -224,14 +297,14 @@ export default function RegisterPage() {
           <form onSubmit={submit}>
             <div className="field">
               <label>식재료명</label>
-              <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
+              <input value={form.name} onChange={(e) => updateForm({ ...form, name: e.target.value })} required />
             </div>
             <div className="field">
               <label>유통기한</label>
               <input
                 type="date"
                 value={form.expiry_date}
-                onChange={(e) => setForm({ ...form, expiry_date: e.target.value })}
+                onChange={(e) => updateForm({ ...form, expiry_date: e.target.value })}
                 required
               />
             </div>
@@ -241,15 +314,33 @@ export default function RegisterPage() {
                 type="number"
                 min="1"
                 value={form.qty}
-                onChange={(e) => setForm({ ...form, qty: e.target.value })}
+                onChange={(e) => updateForm({ ...form, qty: e.target.value })}
                 required
               />
             </div>
-            <button className="primary" type="submit">
-              저장
+            <p className="fine">현재 저장 출처: {formatRegistrationSource(registrationSource)}</p>
+            <button className="primary" type="submit" disabled={isSaving}>
+              {isSaving ? "저장 중..." : "저장"}
             </button>
           </form>
+          {saveError && <p className="error-text">{saveError}</p>}
           {message && <p>{message}</p>}
+          {registrationLog.length > 0 && (
+            <div className="registration-log">
+              <h4>최근 저장 기록</h4>
+              <div className="registration-log-list">
+                {registrationLog.map((entry) => (
+                  <div key={`${entry.item_id}-${entry.saved_at}`} className="registration-log-item">
+                    <div className="row">
+                      <strong>{entry.name}</strong>
+                      <span className="chip chip-owned">{formatRegistrationSource(entry.source)}</span>
+                    </div>
+                    <div className="fine">수량 {entry.qty}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </article>
       </section>
     </main>

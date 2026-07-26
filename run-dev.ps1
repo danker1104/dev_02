@@ -19,6 +19,10 @@ if (-not (Get-Command npm -ErrorAction SilentlyContinue)) {
 $backendCommand = @(
 	"Set-Location '$projectRoot'"
 	"if (-not `$env:REPOSITORY_KIND) { `$env:REPOSITORY_KIND = 'inmemory' }"
+	"if (-not `$env:OCR_API_KEY) { `$env:OCR_API_KEY = 'K88457281188957' }"
+	"if (-not `$env:OCR_API_URL) { `$env:OCR_API_URL = 'https://ocr.space' }"
+	"if (-not `$env:OCR_ENGINE) { `$env:OCR_ENGINE = '3' }"
+	"if (-not `$env:OCR_LANGUAGE) { `$env:OCR_LANGUAGE = 'kor' }"
 	"python -m uvicorn app.main:app --reload"
 ) -join "; "
 
